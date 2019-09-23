@@ -1,0 +1,86 @@
+#version 330
+
+// Phong fragment shader
+// specify uniform variables shared with fragment shader
+
+uniform vec4		lposition;
+uniform vec4		lambient;
+uniform vec4		ldiffuse;
+uniform vec3		lattenuation; // x=constant, y=linear, z=quadratic (x<0 means light is not active)
+
+uniform vec4		matAmbient;
+uniform vec4		matDiffuse;
+uniform vec4		matSpecular;
+
+uniform vec4		lposition1;
+uniform vec4		ldiffuse1;
+uniform vec3		lattenuation1; // x=constant, y=linear, z=quadratic (x<0 means light is not active)
+uniform vec4		lambient1;
+
+uniform vec4		matSpecular1;
+
+uniform vec4		lposition2;
+uniform vec4		ldiffuse2;
+uniform vec3		lattenuation2; // x=constant, y=linear, z=quadratic (x<0 means light is not active)
+uniform vec4		lambient2;
+
+uniform vec4		matSpecular2;
+
+uniform vec4		lposition3;
+uniform vec4		ldiffuse3;
+uniform vec3		lattenuation3; // x=constant, y=linear, z=quadratic (x<0 means light is not active)
+uniform vec4		lambient3;
+
+uniform vec4		matSpecular3;
+
+uniform sampler2D texture1;
+
+// input packet
+in packet {
+	vec3	normal; 
+	vec3	vertexPos;
+	vec3	eyeDir; 
+	vec2	textureCoord;
+} inputFragment;
+
+// output packet
+layout (location = 0) out vec4 fragmentColour;
+
+
+
+vec4 multipleLight(vec4 lposition, vec4 ldiffuse, vec3 lattenuation, vec4 lambient, vec4 matSpecular);
+
+void main(void) {
+
+	vec4 light1 = multipleLight(lposition, ldiffuse, lattenuation, lambient, matSpecular);
+	vec4 light2 = multipleLight(lposition1, ldiffuse1, lattenuation1, lambient1, matSpecular1);
+	vec4 light3 = multipleLight(lposition2, ldiffuse2, lattenuation2, lambient2, matSpecular2);
+	vec4 light4 = multipleLight(lposition3, ldiffuse3, lattenuation3, lambient3, matSpecular3);
+
+	fragmentColour = light1 + light2 + light3 + light4;
+}
+
+vec4 multipleLight(vec4 lposition, vec4 ldiffuse, vec3 lattenuation, vec4 lambient, vec4 matSpecular) {
+
+	vec3 lightDir = (lposition.xyz - inputFragment.vertexPos); 
+	vec4 texColour= vec4(texture2D(texture1, inputFragment.textureCoord).xyz,1);
+
+	float d = length(lightDir);
+	float a = 1.0 / (lattenuation.x + lattenuation.y*d + lattenuation.z*d*d);
+
+	vec4 final_color = lambient * matAmbient * texColour;
+
+	vec3 N = normalize(inputFragment.normal);
+	vec3 L = normalize(lightDir);
+	vec3 E = normalize(inputFragment.eyeDir);
+	
+	float lambertTerm = dot(N, L);
+	final_color += a * ldiffuse * matDiffuse * lambertTerm * texColour;	
+	
+	//spec
+	vec3 R=reflect(L,N);
+
+	float spec = max(pow(dot(-E,R),matSpecular.w),0);
+
+	return final_color += vec4(matSpecular.xyz* spec, matDiffuse.a);
+}
